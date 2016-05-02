@@ -24,9 +24,9 @@ var webrtcDetectedVersion = null;
 var webrtcMinimumVersion = null;
 var webrtcUtils = {
   log: function() {
-    // suppress console.log output when being included as a module.
+    // suppress trace output when being included as a module.
     //if (!(typeof module !== 'undefined' || typeof require === 'function') && (typeof define === 'function')) {
-      console.log.apply(console, arguments);
+      trace.apply(console, arguments);
     //}
   }
 };
