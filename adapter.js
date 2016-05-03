@@ -26,7 +26,7 @@ var webrtcUtils = {
   log: function() {
     // suppress trace output when being included as a module.
     //if (!(typeof module !== 'undefined' || typeof require === 'function') && (typeof define === 'function')) {
-      trace.apply(console, arguments);
+      console.log.apply(console, arguments);
     //}
   }
 };
