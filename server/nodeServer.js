@@ -11,8 +11,14 @@ var io = require("./socket.io")(app);
 app.listen(6969);
 io.sockets.on("connection", function (socket) {
 	socket.on("join", function (channel) {
-		var nClients = io.sockets.clients(channel).length;
-		trace("nClients = " + nClients);
+		var clients = io.sockets.adapter.rooms[channel];
+		var nClients;
+		if (clients === undefined) {
+			nClients = 0;
+		} else {
+			nClients = clients.length;
+		}
+		console.log("nClients = " + nClients);
 
 		if (nClients == 0) {
 			socket.join(channel);
@@ -21,7 +27,7 @@ io.sockets.on("connection", function (socket) {
 			io.sockets.in(channel).emit("remotePeerJoining", channel);
 			socket.join(channel);
 		} else {
-			trace("Channel full");
+			console.log("Channel full");
 			socket.emit("full", channel);
 		}
 	});
@@ -32,7 +38,7 @@ io.sockets.on("connection", function (socket) {
 	});
 
 	socket.on("Ack", function () {
-		trace("Ack received");
+		console.log("Ack received");
 		socket.disconnect();
 	});
 });
