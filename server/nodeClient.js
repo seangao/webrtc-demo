@@ -7,6 +7,9 @@ var channel = prompt("Channel name:");
 var isInitiator = false;
 var isStarted = false;
 var isChannelReady = false;
+var peerNumber = -1;
+var currentConnectingPeer = 0;
+var connectedPeers = [];
 console.log("isChannelReady: " + isChannelReady);
 
 if (channel !== "") {
@@ -17,6 +20,7 @@ if (channel !== "") {
 socket.on("created", function(channel) {
 	console.log("Initiator has created channel: " + channel);
 	isInitiator = true;
+	peerNumber = 0;
 	startVideo();
 });
 
@@ -24,37 +28,86 @@ socket.on("full", function(channel) {
 	console.log("Channel: " + channel + " is full");
 });
 
-socket.on("remotePeerJoining", function(channel) {
-	console.log("Request to join: " + channel);
+socket.on("remotePeerJoining", function(channel, peer) {
+	console.log("Request to join: " + channel + " by peer number: " + peer);
+	currentConnectingPeer = peer;
+	isInitiator = true;
 	isChannelReady = true;
 });
 
-socket.on("joined", function(channel) {
+socket.on("joined", function(channel, peer) {
 	console.log("Joined " + channel);
 	isChannelReady = true;
+	peerNumber = peer;
 	startVideo();
 	console.log("isChannelReady: " + isChannelReady);
 });
 
-socket.on("message", function(message) {
-	console.log("Got message: " + message);
-	if(message == "Got user media") {
-		if(isInitiator) {
-			checkAndStart();
+socket.on("message", function(message, peer, intendedpeer) {
+	console.log("Got message: " + message + " from peer: " + peer + " to peer: " + intendedpeer);
+	if(peerNumber == intendedpeer) {
+		if(message == "Got user media") {
+			if(isInitiator) {
+				console.log("I am peer number " + peerNumber + " who got user media from peer number " + peer);
+				if(peer > peerNumber)
+					checkAndStart(peer-1);
+				else if(peer < peerNumber) 
+					checkAndStart(peer);
+			}
+		} else if(message.type === "offer") {
+			if(!isInitiator) {
+				console.log("We got an offer from peer: " + peer);
+				if(peer > peerNumber)
+					checkAndStart(peer-1);
+				else if(peer < peerNumber) 
+					checkAndStart(peer);
+			}
+			if(peer > peerNumber) {
+				pcLocal[peer-1].setRemoteDescription(new RTCSessionDescription(message));
+				doAnswer(peer-1);
+			} else if(peer < peerNumber) {
+				pcLocal[peer].setRemoteDescription(new RTCSessionDescription(message));
+				doAnswer(peer);
+			}
+		} else if(message.type === "answer") {
+			console.log(peer);
+			if(peer > peerNumber) {
+				console.log(pcLocal[peer-1]);
+				pcLocal[peer-1].setRemoteDescription(new RTCSessionDescription(message));
+			}
+			else if(peer < peerNumber) {
+				console.log(pcLocal[peer]);
+				pcLocal[peer].setRemoteDescription(new RTCSessionDescription(message));
+			}
+			isInitiator = true;
+			//if(connectedPeers.indexOf(peer) == -1)
+			//	connectedPeers.push(peer);
+		} else if(message.type === "candidate") {
+			var candidate = new RTCIceCandidate({sdpMLineIndex:message.label,
+				candidate:message.candidate});
+			if(peer > peerNumber) {
+				pcLocal[peer-1].addIceCandidate(candidate);
+				/*if(pcLocal[peer-1].iceConnectionState == "connected") {
+					console.log("PLS PLS PLS");
+					if(currentConnectingPeer < peerNumber - 1) {
+						currentConnectingPeer++;
+						sendMessage("Got user media", channel, currentConnectingPeer);
+					}
+				}*/
+			}
+			else if(peer < peerNumber) {
+				pcLocal[peer].addIceCandidate(candidate);
+				/*if(pcLocal[peer].iceConnectionState == "connected") {
+					console.log("PLS PLS PLS");
+					if(currentConnectingPeer < peerNumber - 1) {
+						currentConnectingPeer++;
+						sendMessage("Got user media", channel, currentConnectingPeer);
+					}
+				}*/
+			}
+			//if(connectedPeers.indexOf(peer) == -1) 
+			//	connectedPeers.push(peer);
 		}
-	} else if(message.type === "offer") {
-		if(!isInitiator && !isStarted) {
-			console.log("We got an offer boiz");
-			checkAndStart();
-		}
-		pc.setRemoteDescription(new RTCSessionDescription(message));
-		doAnswer();
-	} else if(message.type === "answer" && isStarted) {
-		pc.setRemoteDescription(new RTCSessionDescription(message));
-	} else if(message.type === "candidate" && isStarted) {
-		var candidate = new RTCIceCandidate({sdpMLineIndex:message.label,
-			candidate:message.candidate});
-		pc.addIceCandidate(candidate);
 	}
 });
 
@@ -71,6 +124,7 @@ var pc;
 var pcLocal = [];
 var pcRemote = [];
 var numRemoteStreams = 0;
+var numRemoteDescriptions = 0;
 
 var offerOptions = {
   offerToReceiveAudio: 1,
@@ -88,13 +142,14 @@ function handleError() {
 function getLocalStream(stream) {
 	trace("getLocalStream: retrieving...");
 	var localVideo = $("#videoLocal")[0];
+	localVideo.muted = true;
 	//window.stream = stream;
 	//localVideo.srcObject = stream;
 	//localVideo.play();
 	localVideo.src = window.URL.createObjectURL(stream);
 	localStream = stream;
 	//videoStream.play();
-	sendMessage("Got user media", channel);
+	sendMessage("Got user media", channel, currentConnectingPeer);
 }
 
 function getMediaConstraints(width, height) {
@@ -179,10 +234,14 @@ function gotDescriptionRemote(num, desc) {
 }
 
 function gotRemoteStream(num, e) {
-  createRemoteVideoDiv(num);
-  remoteStreams[num] = $("#videoRemote" + num)[0];
-  remoteStreams[num].src = window.URL.createObjectURL(e.stream);
-  trace('pc' + num + ': received remote stream');
+	createRemoteVideoDiv(num);
+	remoteStreams[num] = $("#videoRemote" + num)[0];
+	remoteStreams[num].src = window.URL.createObjectURL(e.stream);
+	trace('pc' + num + ': received remote stream');
+	if(currentConnectingPeer < peerNumber - 1) {
+		currentConnectingPeer++;
+		sendMessage("Got user media", channel, currentConnectingPeer);
+	}
 }
 
 function iceCallbackLocal(num, event) {
@@ -222,13 +281,13 @@ function hangup() {
   pcLocal = pcRemote = [];
 }
 
-function checkAndStart() {
-	if(!isStarted && typeof localStream != 'undefined' && isChannelReady) {
-		createPeerConnection();
-		pc.addStream(localStream);
-		isStarted = true;
+function checkAndStart(num) {
+	if(typeof localStream != 'undefined' && isChannelReady) {
+		createPeerConnection(num);
+		pcLocal[num].addStream(localStream);
+		//isStarted = true;
 		if(isInitiator) {
-			doCall();
+			doCall(num);
 		}
 	}
 }
@@ -240,7 +299,7 @@ function handleIceCandidate(event) {
 		type: 'candidate',
 		label: event.candidate.sdpMLineIndex,
 		id: event.candidate.sdpMid,
-		candidate: event.candidate.candidate}, channel);
+		candidate: event.candidate.candidate}, channel, currentConnectingPeer);
 	} else {
 		console.log('End of candidates.');
 	}
@@ -256,37 +315,41 @@ function handleRemoteStreamRemoved(event) {
 	console.log('Remote stream removed. Event: ', event);
 }
 
-function createPeerConnection() {
+function createPeerConnection(num) {
 	try {
-		pc = new RTCPeerConnection(null);
-		pc.onicecandidate = handleIceCandidate;
-		console.log("RTCPeerConnection created");
+		pcLocal[num] = new RTCPeerConnection(null);
+		pcLocal[num].onicecandidate = handleIceCandidate;
+		console.log("RTCPeerConnection with " + num + " created");
 	} catch (e) {
 		console.log("Failed to create RTCPeerConnection");
 		return;
 	}
-	pc.onaddstream = gotRemoteStream.bind(null, numRemoteStreams);
-	pc.onremovestream = handleRemoteStreamRemoved;
+	pcLocal[num].onaddstream = gotRemoteStream.bind(null, num);
+	pcLocal[num].onremovestream = handleRemoteStreamRemoved;
 }
 
-function doCall() {
+function doCall(num) {
 	console.log("Creating offer...");
-	pc.createOffer(setLocalAndSendMessage, handleError, sdpConstraints);
+	pcLocal[num].createOffer(setLocalAndSendMessage.bind(null, num, currentConnectingPeer), handleError, sdpConstraints);
 }
 
-function doAnswer() {
+function doAnswer(num) {
 	console.log("Sending answer...");
-	pc.createAnswer(setLocalAndSendMessage, handleError, sdpConstraints);
+	pcLocal[num].createAnswer(setLocalAndSendMessage.bind(null, num, currentConnectingPeer), handleError, sdpConstraints);
 }
 
-function setLocalAndSendMessage(sessionDescription) {
-	pc.setLocalDescription(sessionDescription);
-	sendMessage(sessionDescription, channel);
+function setLocalAndSendMessage(num, intendedpeer, sessionDescription) {
+	pcLocal[num].setLocalDescription(sessionDescription);
+	sendMessage(sessionDescription, channel, intendedpeer);
 }
 
 
 
-function sendMessage(message, channel) {
-	console.log("Sending message: ", message);
-	socket.emit("message", message, channel);
+function sendMessage(message, channel, intendedpeer) {
+	console.log("Sending message: " + message + " from peer number: " + peerNumber);
+	socket.emit("message", message, channel, peerNumber, intendedpeer);
+}
+
+function connected(peer) {
+	return connectedPeers.indexOf(peer) > -1;
 }

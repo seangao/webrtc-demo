@@ -23,13 +23,10 @@ io.sockets.on("connection", function (socket) {
 		if (nClients == 0) {
 			socket.join(channel);
 			socket.emit("created", channel);
-		} else if (nClients == 1) {
-			io.sockets.in(channel).emit("remotePeerJoining", channel);
-			socket.join(channel);
-			socket.emit("joined", channel);
 		} else {
-			console.log("Channel full");
-			socket.emit("full", channel);
+			io.sockets.in(channel).emit("remotePeerJoining", channel, nClients);
+			socket.join(channel);
+			socket.emit("joined", channel, nClients);
 		}
 	});
 
@@ -38,9 +35,9 @@ io.sockets.on("connection", function (socket) {
 		socket.disconnect();
 	});
 
-	socket.on("message", function (message, channel) {
+	socket.on("message", function (message, channel, peer, intendedpeer) {
 		console.log("Got message: " + message + " " + channel);
-		io.sockets.in(channel).emit("message", message);
+		io.sockets.in(channel).emit("message", message, peer, intendedpeer);
 	});
 
 	socket.on("Ack", function () {
