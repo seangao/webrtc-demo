@@ -1,4 +1,4 @@
-var adapter = require("../adapter.js");
+var adapter = require("../third-party/adapter.js");
 var static = require("node-static");
 var http = require("http");
 var file = new(static.Server)();
