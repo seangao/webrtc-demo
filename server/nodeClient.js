@@ -113,6 +113,7 @@ socket.on("message", function(message, peer, intendedpeer) {
 
 socket.on("Bye", function() {
 	console.log("Disconnecting, sending ack to server...");
+	hangup();
 	socket.emit("Ack");
 	socket.disconnect();
 });
@@ -270,6 +271,10 @@ function onAddIceCandidateError(error) {
 
 function createRemoteVideoDiv(num) {
 	$("#remoteVideos").append("<video id=\"videoRemote" + num + "\" autoplay></video>");
+}
+
+function endCall() {
+	socket.emit("Bye", channel);
 }
 
 function hangup() {
