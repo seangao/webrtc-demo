@@ -8,7 +8,7 @@ var app = http.createServer(function (req, res) {
 
 var io = require("socket.io")(app);
 
-app.listen(6969);
+app.listen(parseInt(process.argv[2]));
 io.sockets.on("connection", function (socket) {
 	socket.on("join", function (channel) {
 		var clients = io.sockets.adapter.rooms[channel];

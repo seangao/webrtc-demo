@@ -1,7 +1,7 @@
 'use strict';
 
 var div = $("#main-div")[0];
-var socket = io.connect("http://localhost:6969");
+var socket = io.connect("http://" + prompt("IP:Port (ex. localhost:6789)"));
 var channel = prompt("Channel name:");
 
 var isInitiator = false;
