@@ -4,15 +4,16 @@
 	<title>WebRTC Demo</title>
 	<script src="adapter.js"></script>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+	<script src="server/socket.io.js"></script>
 </head>
 <body>
-	<iframe width="560" height="315" src="https://www.youtube.com/embed/-jenlSf2E8o" frameborder="0" allowfullscreen></iframe>
-<div id="mainDiv">
+<div id="main-div">
 <div><video id="videoLocal" autoplay></video></div>
 <div id="remoteVideos"></div>
 <button onclick="startVideo()">Start</button>
 <button onclick="addCall()">Call</button>
-<script src="userMedia.js"></script>
+<button onclick="hangup()">Hangup</button>
+<script src="server/nodeClient.js"></script>
 </div>
 </body>
 </html>

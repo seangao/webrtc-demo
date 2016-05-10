@@ -1,12 +1,12 @@
 var adapter = require("../adapter.js");
-var static = require("./node-static");
+var static = require("node-static");
 var http = require("http");
 var file = new(static.Server)();
 var app = http.createServer(function (req, res) {
 	file.serve(req, res);
 });
 
-var io = require("./socket.io")(app);
+var io = require("socket.io")(app);
 
 app.listen(6969);
 io.sockets.on("connection", function (socket) {
@@ -26,6 +26,7 @@ io.sockets.on("connection", function (socket) {
 		} else if (nClients == 1) {
 			io.sockets.in(channel).emit("remotePeerJoining", channel);
 			socket.join(channel);
+			socket.emit("joined", channel);
 		} else {
 			console.log("Channel full");
 			socket.emit("full", channel);
@@ -35,6 +36,11 @@ io.sockets.on("connection", function (socket) {
 	socket.on("Bye", function (channel) {
 		socket.broadcast.to(channel).emit("Bye");
 		socket.disconnect();
+	});
+
+	socket.on("message", function (message, channel) {
+		console.log("Got message: " + message + " " + channel);
+		io.sockets.in(channel).emit("message", message);
 	});
 
 	socket.on("Ack", function () {

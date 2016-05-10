@@ -10,6 +10,10 @@ var offerOptions = {
   offerToReceiveVideo: 1
 };
 
+var isInitiator = false;
+var isStarted = false;
+var isChannelReady = false;
+
 function handleError() {
     console.error("Error");
 }
@@ -141,4 +145,30 @@ function createRemoteVideoDiv(num) {
 	$("#remoteVideos").append("<video id=\"videoRemote" + num + "\" autoplay></video>");
 }
 
+function hangup() {
+  trace('Ending calls');
+  for(var i = 0; i < pcLocal.length; i++)
+  	pcLocal[i].close();
+  for(var i = 0; i < pcRemote.length; i++)
+  	pcRemote[i].close();
+  pcLocal = pcRemote = [];
+}
+
+function checkAndStart() {
+	if(!isStarted && typeof localStream != 'undefined' && isChannelReady) {
+		createPeerConnection();
+		isStarted = true;
+		if(isInitiator) {
+			doCall();
+		}
+	}
+}
+
+function createPeerConnection() {
+
+}
+
+function doCall() {
+
+}
 
