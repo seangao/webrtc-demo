@@ -153,22 +153,3 @@ function hangup() {
   	pcRemote[i].close();
   pcLocal = pcRemote = [];
 }
-
-function checkAndStart() {
-	if(!isStarted && typeof localStream != 'undefined' && isChannelReady) {
-		createPeerConnection();
-		isStarted = true;
-		if(isInitiator) {
-			doCall();
-		}
-	}
-}
-
-function createPeerConnection() {
-
-}
-
-function doCall() {
-
-}
-
